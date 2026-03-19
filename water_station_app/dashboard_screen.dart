@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../main.dart';
+import 'water_tips_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -31,11 +33,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
+  String get _firstName {
+    final user = FirebaseAuth.instance.currentUser;
+    final name = user?.displayName ?? 'there';
+    return name.trim().split(' ').first;
+  }
+
   String get _greeting {
     final hour = _now.hour;
-    if (hour < 12) return 'Good Morning ☀️';
-    if (hour < 17) return 'Good Afternoon 🌤️';
-    return 'Good Evening 🌙';
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
+  String get _greetingEmoji {
+    final hour = _now.hour;
+    if (hour < 12) return '☀️';
+    if (hour < 17) return '🌤️';
+    return '🌙';
   }
 
   String get _formattedTime {
@@ -65,31 +80,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Color get _qualityColor {
     if (tds < 150 && turb < 1) return const Color(0xFF00B894);
-    if (tds < 200 && turb < 2) return const Color(0xFF0077B6);
+    if (tds < 200 && turb < 2) return const Color(0xFF0096C7);
     if (tds < 300 && turb < 4) return const Color(0xFFFF9800);
     return const Color(0xFFE53935);
   }
 
   String get _quickTip {
-    if (level < 30) return '💧 Tank is low! Schedule a refill soon.';
-    if (tds > 300) return '⚠️ TDS is high. Consider replacing the filter.';
-    if (turb > 3) return '🌊 Water is cloudy. Check the filtration system.';
-    if (level > 80) return '✅ Tank is full. Water quality looks great!';
-    return '👍 Everything looks normal. Keep monitoring regularly.';
+    if (level < 30) return 'Tank is low! Schedule a refill soon.';
+    if (tds > 300) return 'TDS is high. Consider replacing the filter.';
+    if (turb > 3) return 'Water is cloudy. Check the filtration system.';
+    if (level > 80) return 'Tank is full. Water quality looks great!';
+    return 'Everything looks normal. Keep monitoring regularly.';
+  }
+
+  IconData get _quickTipIcon {
+    if (level < 30) return Icons.water_drop_outlined;
+    if (tds > 300) return Icons.warning_amber_outlined;
+    if (turb > 3) return Icons.opacity_outlined;
+    if (level > 80) return Icons.check_circle_outline;
+    return Icons.tips_and_updates_outlined;
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = WaterStationApp.of(context)?.isDarkMode ?? false;
     final bgColor = isDark
-      ? const Color(0xFF0A0E1A)
-      : const Color(0xFFF8FAFE);
+      ? const Color(0xFF060B14)
+      : const Color(0xFFF0F4F8);
     final cardColor = isDark
-      ? const Color(0xFF111827)
+      ? const Color(0xFF0D1421)
       : Colors.white;
     final textColor = isDark
       ? Colors.white
-      : const Color(0xFF1A1A2E);
+      : const Color(0xFF0D1B2A);
     final subTextColor = isDark
       ? Colors.grey.shade400
       : Colors.grey.shade500;
@@ -103,23 +126,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
 
-              // Header
+              // Header with welcome message
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(_greeting,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: subTextColor)),
-                      Text('Station Monitor',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF0077B6))),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          Text('$_greeting, ',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: subTextColor)),
+                          Text('$_greetingEmoji',
+                            style: const TextStyle(fontSize: 14)),
+                        ]),
+                        RichText(
+                          text: TextSpan(children: [
+                            TextSpan(
+                              text: _firstName,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0096C7))),
+                            TextSpan(
+                              text: ' 👋',
+                              style: TextStyle(
+                                fontSize: 22,
+                                color: textColor)),
+                          ]),
+                        ),
+                        Text('AquaMonitor Station',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: subTextColor)),
+                      ],
+                    ),
                   ),
                   Row(children: [
                     // Dark mode toggle
@@ -130,13 +173,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         width: 42, height: 42,
                         decoration: BoxDecoration(
                           color: isDark
-                            ? const Color(0xFF1E2A3A)
-                            : const Color(0xFFE3F2FD),
+                            ? const Color(0xFF1A2332)
+                            : const Color(0xFFE1F0FA),
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark
+                              ? const Color(0xFF0096C7).withOpacity(0.2)
+                              : const Color(0xFF0096C7).withOpacity(0.1)),
                         ),
                         child: Icon(
                           isDark ? Icons.light_mode : Icons.dark_mode,
-                          color: const Color(0xFF0077B6),
+                          color: const Color(0xFF0096C7),
                           size: 20),
                       ),
                     ),
@@ -146,17 +193,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5E9),
+                        color: const Color(0xFF00B894).withOpacity(0.12),
                         borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFF00B894).withOpacity(0.3)),
                       ),
                       child: Row(children: [
                         Container(
-                          width: 8, height: 8,
+                          width: 7, height: 7,
                           decoration: const BoxDecoration(
                             color: Color(0xFF00B894),
                             shape: BoxShape.circle),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 5),
                         const Text('Live',
                           style: TextStyle(
                             fontSize: 12,
@@ -173,13 +222,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 20, vertical: 14),
+                  horizontal: 18, vertical: 13),
                 decoration: BoxDecoration(
                   color: cardColor,
                   borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark
+                      ? const Color(0xFF0096C7).withOpacity(0.15)
+                      : const Color(0xFF0096C7).withOpacity(0.08)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withOpacity(
+                        isDark ? 0.3 : 0.05),
                       blurRadius: 10),
                   ],
                 ),
@@ -187,17 +241,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(children: [
-                      const Icon(Icons.access_time,
-                        color: Color(0xFF0077B6), size: 18),
-                      const SizedBox(width: 8),
+                      Container(
+                        width: 32, height: 32,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0096C7).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.access_time,
+                          color: Color(0xFF0096C7), size: 16),
+                      ),
+                      const SizedBox(width: 10),
                       Text(_formattedTime,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF0077B6))),
+                          color: Color(0xFF0096C7))),
                     ]),
                     Flexible(
                       child: Text(_formattedDate,
+                        textAlign: TextAlign.right,
                         style: TextStyle(
                           fontSize: 11,
                           color: subTextColor)),
@@ -219,15 +281,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: const Color(0xFFFFCDD2)),
                   ),
                   child: Row(children: [
-                    const Icon(Icons.warning_amber_rounded,
-                      color: Color(0xFFE53935), size: 20),
+                    Container(
+                      width: 32, height: 32,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE53935).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.warning_amber_rounded,
+                        color: Color(0xFFE53935), size: 18),
+                    ),
                     const SizedBox(width: 10),
                     const Expanded(
-                      child: Text('Low Water Level — Refill Needed',
-                        style: TextStyle(
-                          color: Color(0xFFE53935),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13))),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Low Water Level',
+                            style: TextStyle(
+                              color: Color(0xFFE53935),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13)),
+                          Text('Refill needed soon',
+                            style: TextStyle(
+                              color: Color(0xFFE53935),
+                              fontSize: 11)),
+                        ],
+                      )),
                   ]),
                 ),
                 const SizedBox(height: 14),
@@ -238,15 +316,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: _qualityColor.withOpacity(0.08),
+                  color: _qualityColor.withOpacity(0.07),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: _qualityColor.withOpacity(0.2)),
                 ),
                 child: Row(children: [
-                  Icon(Icons.tips_and_updates,
-                    color: _qualityColor, size: 16),
-                  const SizedBox(width: 8),
+                  Container(
+                    width: 32, height: 32,
+                    decoration: BoxDecoration(
+                      color: _qualityColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(_quickTipIcon,
+                      color: _qualityColor, size: 16),
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(_quickTip,
                       style: TextStyle(
@@ -258,11 +343,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 16),
 
               // Section: Water Level
-              Text('Water Level',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: textColor)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Water Level',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: textColor)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0096C7).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text('Main Tank',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF0096C7),
+                        fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
               const SizedBox(height: 10),
 
               // Water level card
@@ -271,16 +374,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF0077B6), Color(0xFF00B4D8)],
+                    colors: [Color(0xFF023E8A), Color(0xFF0096C7),
+                             Color(0xFF00B4D8)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF0077B6).withOpacity(0.35),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8)),
+                      color: const Color(0xFF0096C7).withOpacity(0.4),
+                      blurRadius: 24,
+                      offset: const Offset(0, 10)),
                   ],
                 ),
                 child: Column(
@@ -296,8 +400,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2)),
                           ),
                           child: Text(
                             level > 60 ? '✓ Good'
@@ -313,7 +419,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Text('${level.toStringAsFixed(0)}%',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 52,
+                        fontSize: 56,
                         fontWeight: FontWeight.bold,
                         height: 1.1)),
                     const SizedBox(height: 14),
@@ -322,7 +428,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: LinearProgressIndicator(
                         value: level / 100,
                         backgroundColor:
-                          Colors.white.withOpacity(0.3),
+                          Colors.white.withOpacity(0.2),
                         valueColor: const AlwaysStoppedAnimation(
                           Colors.white),
                         minHeight: 10,
@@ -338,11 +444,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             color: Colors.white70, fontSize: 12)),
                         Row(children: [
                           const Icon(Icons.history,
-                            color: Colors.white70, size: 13),
+                            color: Colors.white60, size: 12),
                           const SizedBox(width: 4),
                           Text('Last refill: $_lastRefill',
                             style: const TextStyle(
-                              color: Colors.white70,
+                              color: Colors.white60,
                               fontSize: 11)),
                         ]),
                       ],
@@ -361,24 +467,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: textColor)),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: _qualityColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
+                  Row(children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _qualityColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: _qualityColor.withOpacity(0.2)),
+                      ),
+                      child: Row(children: [
+                        Icon(Icons.verified,
+                          color: _qualityColor, size: 12),
+                        const SizedBox(width: 4),
+                        Text(_overallQuality,
+                          style: TextStyle(
+                            color: _qualityColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold)),
+                      ]),
                     ),
-                    child: Row(children: [
-                      Icon(Icons.verified,
-                        color: _qualityColor, size: 14),
-                      const SizedBox(width: 5),
-                      Text(_overallQuality,
-                        style: TextStyle(
-                          color: _qualityColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold)),
-                    ]),
-                  ),
+                    const SizedBox(width: 8),
+                    // Water tips button
+                    GestureDetector(
+                      onTap: () => Navigator.push(context,
+                        MaterialPageRoute(
+                          builder: (_) => const WaterTipsScreen())),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0096C7).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: const Color(0xFF0096C7)
+                              .withOpacity(0.2)),
+                        ),
+                        child: const Row(children: [
+                          Icon(Icons.lightbulb_outline,
+                            color: Color(0xFF0096C7), size: 12),
+                          SizedBox(width: 4),
+                          Text('Tips',
+                            style: TextStyle(
+                              color: Color(0xFF0096C7),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
+                        ]),
+                      ),
+                    ),
+                  ]),
                 ],
               ),
               const SizedBox(height: 10),
@@ -393,10 +531,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     : tds < 200 ? 'Good' : 'Poor',
                   icon: Icons.science_outlined,
                   color: tds < 150 ? const Color(0xFF00B894)
-                    : tds < 200 ? const Color(0xFF0077B6)
+                    : tds < 200 ? const Color(0xFF0096C7)
                     : const Color(0xFFFF9800),
                   progress: tds / 300,
                   cardColor: cardColor,
+                  isDark: isDark,
                 )),
                 const SizedBox(width: 12),
                 Expanded(child: _QualityCard(
@@ -407,10 +546,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     : turb < 2 ? 'Good' : 'Cloudy',
                   icon: Icons.opacity_outlined,
                   color: turb < 1 ? const Color(0xFF00B894)
-                    : turb < 2 ? const Color(0xFF0077B6)
+                    : turb < 2 ? const Color(0xFF0096C7)
                     : const Color(0xFFFF9800),
                   progress: turb / 5,
                   cardColor: cardColor,
+                  isDark: isDark,
                 )),
               ]),
               const SizedBox(height: 14),
@@ -421,9 +561,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 decoration: BoxDecoration(
                   color: cardColor,
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isDark
+                      ? Colors.white.withOpacity(0.05)
+                      : Colors.black.withOpacity(0.04)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withOpacity(
+                        isDark ? 0.3 : 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4)),
                   ],
@@ -438,18 +583,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
-                            color: Color(0xFF0077B6))),
+                            color: Color(0xFF0096C7))),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
+                            horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: _qualityColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: _qualityColor.withOpacity(0.2)),
                           ),
                           child: Text(
                             tds < 300 && turb < 4
-                              ? 'Safe to drink'
-                              : 'Not recommended',
+                              ? '✓ Safe to drink'
+                              : '✗ Not recommended',
                             style: TextStyle(
                               fontSize: 11,
                               color: _qualityColor,
@@ -465,7 +612,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       : tds < 200 ? 'Good' : 'Poor',
                       tds / 300,
                       tds < 150 ? const Color(0xFF00B894)
-                      : tds < 200 ? const Color(0xFF0077B6)
+                      : tds < 200 ? const Color(0xFF0096C7)
                       : const Color(0xFFFF9800),
                     ),
                     const SizedBox(height: 14),
@@ -476,7 +623,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       : turb < 2 ? 'Clear' : 'Cloudy',
                       turb / 5,
                       turb < 1 ? const Color(0xFF00B894)
-                      : turb < 2 ? const Color(0xFF0077B6)
+                      : turb < 2 ? const Color(0xFF0096C7)
                       : const Color(0xFFFF9800),
                     ),
                   ],
@@ -505,11 +652,13 @@ class _QualityCard extends StatelessWidget {
   final IconData icon;
   final Color color, cardColor;
   final double progress;
+  final bool isDark;
   const _QualityCard({
     required this.label, required this.value,
     required this.unit, required this.status,
     required this.icon, required this.color,
     required this.progress, required this.cardColor,
+    required this.isDark,
   });
 
   @override
@@ -519,9 +668,14 @@ class _QualityCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark
+            ? Colors.white.withOpacity(0.05)
+            : color.withOpacity(0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(
+              isDark ? 0.3 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4)),
         ],
@@ -532,7 +686,14 @@ class _QualityCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, color: color, size: 20),
+              Container(
+                width: 32, height: 32,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 16),
+              ),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 8, vertical: 3),
@@ -569,9 +730,9 @@ class _QualityCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: progress.clamp(0.0, 1.0),
-              backgroundColor: Colors.grey.shade100,
+              backgroundColor: color.withOpacity(0.1),
               valueColor: AlwaysStoppedAnimation(color),
-              minHeight: 4,
+              minHeight: 5,
             ),
           ),
         ],
@@ -618,7 +779,7 @@ class _QualityRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(6),
           child: LinearProgressIndicator(
             value: progress.clamp(0.0, 1.0),
-            backgroundColor: Colors.grey.shade100,
+            backgroundColor: color.withOpacity(0.1),
             valueColor: AlwaysStoppedAnimation(color),
             minHeight: 8,
           ),
