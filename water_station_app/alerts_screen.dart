@@ -10,52 +10,32 @@ class AlertsScreen extends StatefulWidget {
 class _AlertsScreenState extends State<AlertsScreen> {
   String _filter = 'All';
 
-  final List<Map<String, dynamic>> _alerts = [
-    {
-      'type': 'warning',
-      'msg': 'Water level dropped below 30%',
-      'detail': 'Current level is at 28%. Please refill the tank soon.',
-      'time': '2:14 PM',
-      'read': false,
-    },
-    {
-      'type': 'alert',
-      'msg': 'TDS level slightly elevated',
-      'detail': 'TDS reading is 210 ppm. Normal range is below 200 ppm.',
-      'time': 'Yesterday, 10:42 AM',
-      'read': false,
-    },
-    {
-      'type': 'success',
-      'msg': 'Tank refilled successfully',
-      'detail': 'Tank is now at 80% capacity.',
-      'time': 'Yesterday, 9:01 AM',
-      'read': true,
-    },
-    {
-      'type': 'info',
-      'msg': 'System connected to Firebase',
-      'detail': 'ESP32 is online and sending data.',
-      'time': '2 days ago',
-      'read': true,
-    },
-  ];
+  List<Map<String, dynamic>> get _alerts => AppState.alerts;
 
   int get _unreadCount => _alerts.where((a) => !a['read']).length;
 
   List<Map<String, dynamic>> get _filteredAlerts {
     if (_filter == 'Unread') return _alerts.where((a) => !a['read']).toList();
-    if (_filter == 'Alerts') return _alerts.where((a) => a['type'] == 'alert' || a['type'] == 'warning').toList();
+    if (_filter == 'Alerts') return _alerts.where((a) =>
+      a['type'] == 'alert' || a['type'] == 'warning').toList();
     return _alerts;
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = WaterStationApp.of(context)?.isDarkMode ?? false;
-    final bgColor = isDark ? const Color(0xFF0A0E1A) : const Color(0xFFF8FAFE);
-    final cardColor = isDark ? const Color(0xFF111827) : Colors.white;
-    final textColor = isDark ? Colors.white : const Color(0xFF1A1A2E);
-    final subTextColor = isDark ? Colors.grey.shade400 : Colors.grey.shade500;
+    final bgColor = isDark
+      ? const Color(0xFF0A0E1A)
+      : const Color(0xFFF8FAFE);
+    final cardColor = isDark
+      ? const Color(0xFF111827)
+      : Colors.white;
+    final textColor = isDark
+      ? Colors.white
+      : const Color(0xFF1A1A2E);
+    final subTextColor = isDark
+      ? Colors.grey.shade400
+      : Colors.grey.shade500;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -73,13 +53,31 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Notifications',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF0077B6))),
+                      Row(children: [
+                        Text('Notifications',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF0077B6))),
+                        const SizedBox(width: 10),
+                        if (_unreadCount > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE53935),
+                              borderRadius: BorderRadius.circular(12)),
+                            child: Text('$_unreadCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold)),
+                          ),
+                      ]),
                       Text(
-                        '$_unreadCount unread alert${_unreadCount != 1 ? 's' : ''}',
+                        _alerts.isEmpty
+                          ? 'No notifications yet'
+                          : '$_unreadCount unread alert${_unreadCount != 1 ? 's' : ''}',
                         style: TextStyle(
                           fontSize: 13,
                           color: subTextColor)),
@@ -88,7 +86,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   if (_unreadCount > 0)
                     TextButton(
                       onPressed: () => setState(() {
-                        for (var a in _alerts) a['read'] = true;
+                        for (var a in AppState.alerts) a['read'] = true;
                       }),
                       child: const Text('Mark all read',
                         style: TextStyle(
@@ -99,67 +97,70 @@ class _AlertsScreenState extends State<AlertsScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Summary stats row
-              Row(children: [
-                _StatBadge(
-                  label: 'Total',
-                  count: _alerts.length,
-                  color: const Color(0xFF0077B6),
-                  cardColor: cardColor,
-                ),
-                const SizedBox(width: 8),
-                _StatBadge(
-                  label: 'Unread',
-                  count: _unreadCount,
-                  color: const Color(0xFFE53935),
-                  cardColor: cardColor,
-                ),
-                const SizedBox(width: 8),
-                _StatBadge(
-                  label: 'Warnings',
-                  count: _alerts.where((a) =>
-                    a['type'] == 'alert' || a['type'] == 'warning').length,
-                  color: const Color(0xFFFF9800),
-                  cardColor: cardColor,
-                ),
-              ]),
-              const SizedBox(height: 16),
+              // Summary stats
+              if (_alerts.isNotEmpty) ...[
+                Row(children: [
+                  _StatBadge(
+                    label: 'Total',
+                    count: _alerts.length,
+                    color: const Color(0xFF0077B6),
+                    cardColor: cardColor,
+                  ),
+                  const SizedBox(width: 8),
+                  _StatBadge(
+                    label: 'Unread',
+                    count: _unreadCount,
+                    color: const Color(0xFFE53935),
+                    cardColor: cardColor,
+                  ),
+                  const SizedBox(width: 8),
+                  _StatBadge(
+                    label: 'Warnings',
+                    count: _alerts.where((a) =>
+                      a['type'] == 'alert' ||
+                      a['type'] == 'warning').length,
+                    color: const Color(0xFFFF9800),
+                    cardColor: cardColor,
+                  ),
+                ]),
+                const SizedBox(height: 16),
 
-              // Filter tabs
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(children: [
-                  for (final f in ['All', 'Unread', 'Alerts'])
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
-                        onTap: () => setState(() => _filter = f),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: _filter == f
-                              ? const Color(0xFF0077B6)
-                              : cardColor,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
+                // Filter tabs
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(children: [
+                    for (final f in ['All', 'Unread', 'Alerts'])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          onTap: () => setState(() => _filter = f),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
                               color: _filter == f
                                 ? const Color(0xFF0077B6)
-                                : Colors.grey.shade200),
+                                : cardColor,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: _filter == f
+                                  ? const Color(0xFF0077B6)
+                                  : Colors.grey.shade200),
+                            ),
+                            child: Text(f,
+                              style: TextStyle(
+                                color: _filter == f
+                                  ? Colors.white
+                                  : subTextColor,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500)),
                           ),
-                          child: Text(f,
-                            style: TextStyle(
-                              color: _filter == f
-                                ? Colors.white
-                                : subTextColor,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500)),
                         ),
                       ),
-                    ),
-                ]),
-              ),
-              const SizedBox(height: 16),
+                  ]),
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // Alert list
               Expanded(
@@ -168,20 +169,35 @@ class _AlertsScreenState extends State<AlertsScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.notifications_none,
-                            size: 60, color: Colors.grey.shade300),
-                          const SizedBox(height: 12),
-                          Text('No alerts here',
+                          Container(
+                            width: 80, height: 80,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE3F2FD),
+                              borderRadius: BorderRadius.circular(20)),
+                            child: const Icon(Icons.notifications_none,
+                              size: 40,
+                              color: Color(0xFF0077B6)),
+                          ),
+                          const SizedBox(height: 16),
+                          Text('No notifications yet',
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Alerts will appear here when\nsomething needs your attention.',
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               color: subTextColor,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500)),
+                              fontSize: 13)),
                         ],
                       ),
                     )
                   : ListView.separated(
                       itemCount: _filteredAlerts.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      separatorBuilder: (_, __) =>
+                        const SizedBox(height: 10),
                       itemBuilder: (ctx, i) {
                         final a = _filteredAlerts[i];
                         final isAlert = a['type'] == 'alert';
@@ -243,7 +259,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
                               const SizedBox(width: 14),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                   children: [
                                     Text(a['msg'],
                                       style: TextStyle(

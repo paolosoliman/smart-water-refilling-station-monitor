@@ -9,12 +9,13 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-double get level => AppState.waterLevel;
-double get tds => AppState.tds;
-double get turb => AppState.turbidity;
+  double get level => AppState.waterLevel;
+  double get tds => AppState.tds;
+  double get turb => AppState.turbidity;
+  String get _lastRefill => AppState.lastRefill;
+
   DateTime _now = DateTime.now();
   late Timer _timer;
-  final String _lastRefill = 'Mar 12, 08:30 AM';
 
   @override
   void initState() {
@@ -38,7 +39,9 @@ double get turb => AppState.turbidity;
   }
 
   String get _formattedTime {
-    final h = _now.hour > 12 ? _now.hour - 12 : _now.hour == 0 ? 12 : _now.hour;
+    final h = _now.hour > 12
+      ? _now.hour - 12
+      : _now.hour == 0 ? 12 : _now.hour;
     final m = _now.minute.toString().padLeft(2, '0');
     final s = _now.second.toString().padLeft(2, '0');
     final period = _now.hour >= 12 ? 'PM' : 'AM';
@@ -100,7 +103,7 @@ double get turb => AppState.turbidity;
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
 
-              // Header with dark mode toggle
+              // Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -121,7 +124,8 @@ double get turb => AppState.turbidity;
                   Row(children: [
                     // Dark mode toggle
                     GestureDetector(
-                      onTap: () => WaterStationApp.of(context)?.toggleTheme(),
+                      onTap: () =>
+                        WaterStationApp.of(context)?.toggleTheme(),
                       child: Container(
                         width: 42, height: 42,
                         decoration: BoxDecoration(
@@ -183,19 +187,21 @@ double get turb => AppState.turbidity;
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(children: [
-                      Icon(Icons.access_time,
-                        color: const Color(0xFF0077B6), size: 18),
+                      const Icon(Icons.access_time,
+                        color: Color(0xFF0077B6), size: 18),
                       const SizedBox(width: 8),
                       Text(_formattedTime,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: const Color(0xFF0077B6))),
+                          color: Color(0xFF0077B6))),
                     ]),
-                    Text(_formattedDate,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: subTextColor)),
+                    Flexible(
+                      child: Text(_formattedDate,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: subTextColor)),
+                    ),
                   ],
                 ),
               ),
@@ -209,7 +215,8 @@ double get turb => AppState.turbidity;
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFEBEE),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFFFCDD2)),
+                    border: Border.all(
+                      color: const Color(0xFFFFCDD2)),
                   ),
                   child: Row(children: [
                     const Icon(Icons.warning_amber_rounded,
@@ -236,11 +243,17 @@ double get turb => AppState.turbidity;
                   border: Border.all(
                     color: _qualityColor.withOpacity(0.2)),
                 ),
-                child: Text(_quickTip,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: _qualityColor,
-                    fontWeight: FontWeight.w500)),
+                child: Row(children: [
+                  Icon(Icons.tips_and_updates,
+                    color: _qualityColor, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(_quickTip,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: _qualityColor,
+                        fontWeight: FontWeight.w500))),
+                ]),
               ),
               const SizedBox(height: 16),
 
@@ -252,6 +265,7 @@ double get turb => AppState.turbidity;
                   color: textColor)),
               const SizedBox(height: 10),
 
+              // Water level card
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(22),
@@ -307,9 +321,10 @@ double get turb => AppState.turbidity;
                       borderRadius: BorderRadius.circular(10),
                       child: LinearProgressIndicator(
                         value: level / 100,
-                        backgroundColor: Colors.white.withOpacity(0.3),
-                        valueColor:
-                          const AlwaysStoppedAnimation(Colors.white),
+                        backgroundColor:
+                          Colors.white.withOpacity(0.3),
+                        valueColor: const AlwaysStoppedAnimation(
+                          Colors.white),
                         minHeight: 10,
                       ),
                     ),
@@ -327,7 +342,8 @@ double get turb => AppState.turbidity;
                           const SizedBox(width: 4),
                           Text('Last refill: $_lastRefill',
                             style: const TextStyle(
-                              color: Colors.white70, fontSize: 11)),
+                              color: Colors.white70,
+                              fontSize: 11)),
                         ]),
                       ],
                     ),
@@ -418,16 +434,27 @@ double get turb => AppState.turbidity;
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Quality Analysis',
+                        const Text('Quality Analysis',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
-                            color: const Color(0xFF0077B6))),
-                        Text('Safe to drink',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: _qualityColor,
-                            fontWeight: FontWeight.w500)),
+                            color: Color(0xFF0077B6))),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: _qualityColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            tds < 300 && turb < 4
+                              ? 'Safe to drink'
+                              : 'Not recommended',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _qualityColor,
+                              fontWeight: FontWeight.w600)),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),

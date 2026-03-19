@@ -10,27 +10,32 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   String _filter = 'All';
 
-  final List<Map<String, dynamic>> _history = [
-    {'time': 'Mar 12, 09:00', 'level': 65, 'tds': 143, 'turb': 1.2, 'status': 'Normal'},
-    {'time': 'Mar 12, 07:00', 'level': 58, 'tds': 155, 'turb': 1.4, 'status': 'Normal'},
-    {'time': 'Mar 12, 05:00', 'level': 50, 'tds': 162, 'turb': 1.1, 'status': 'Normal'},
-    {'time': 'Mar 11, 23:00', 'level': 45, 'tds': 178, 'turb': 1.8, 'status': 'Normal'},
-    {'time': 'Mar 11, 21:00', 'level': 28, 'tds': 210, 'turb': 2.5, 'status': 'Alert'},
-    {'time': 'Mar 11, 19:00', 'level': 80, 'tds': 140, 'turb': 0.8, 'status': 'Normal'},
-    {'time': 'Mar 11, 17:00', 'level': 75, 'tds': 135, 'turb': 0.9, 'status': 'Normal'},
-    {'time': 'Mar 11, 15:00', 'level': 60, 'tds': 190, 'turb': 1.5, 'status': 'Normal'},
-    {'time': 'Mar 11, 13:00', 'level': 25, 'tds': 320, 'turb': 3.2, 'status': 'Alert'},
-    {'time': 'Mar 11, 11:00', 'level': 90, 'tds': 125, 'turb': 0.7, 'status': 'Normal'},
-  ];
+  List<Map<String, dynamic>> get _history => AppState.history;
 
   List<Map<String, dynamic>> get _filteredHistory {
-    if (_filter == 'Normal') {
-      return _history.where((r) => r['status'] == 'Normal').toList();
+    List<Map<String, dynamic>> list = _history;
+    final now = DateTime.now();
+
+    if (_filter == 'This Week') {
+      final weekAgo = now.subtract(const Duration(days: 7));
+      list = list.where((r) {
+        final ts = r['timestamp'] as DateTime?;
+        return ts != null && ts.isAfter(weekAgo);
+      }).toList();
+    } else if (_filter == 'This Month') {
+      list = list.where((r) {
+        final ts = r['timestamp'] as DateTime?;
+        return ts != null &&
+          ts.month == now.month &&
+          ts.year == now.year;
+      }).toList();
+    } else if (_filter == 'Refill') {
+      list = list.where((r) => r['action'] == 'Refill').toList();
+    } else if (_filter == 'Drain') {
+      list = list.where((r) => r['action'] == 'Drain').toList();
     }
-    if (_filter == 'Alert') {
-      return _history.where((r) => r['status'] == 'Alert').toList();
-    }
-    return _history;
+
+    return list;
   }
 
   @override
@@ -49,14 +54,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ? Colors.grey.shade400
       : Colors.grey.shade500;
 
-    final normal = _history.where((r) => r['status'] == 'Normal').length;
-    final alerts = _history.where((r) => r['status'] == 'Alert').length;
-
-    // Average TDS
-    final avgTds = _history.isEmpty
-      ? 0.0
-      : _history.map((r) => r['tds'] as int)
-          .reduce((a, b) => a + b) / _history.length;
+    final refillCount = _history
+      .where((r) => r['action'] == 'Refill').length;
+    final drainCount = _history
+      .where((r) => r['action'] == 'Drain').length;
+    final alertCount = _history
+      .where((r) => r['status'] == 'Alert').length;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -79,13 +82,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           fontSize: 26,
                           fontWeight: FontWeight.bold,
                           color: const Color(0xFF0077B6))),
-                      Text('Last ${_history.length} readings',
+                      Text(
+                        _history.isEmpty
+                          ? 'No records yet'
+                          : '${_history.length} total records',
                         style: TextStyle(
                           fontSize: 13,
                           color: subTextColor)),
                     ],
                   ),
-                  // Refresh button
                   GestureDetector(
                     onTap: () => setState(() {}),
                     child: Container(
@@ -102,104 +107,108 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Summary cards
-              Row(children: [
-                Expanded(child: _SummaryCard(
-                  label: 'Normal',
-                  value: '$normal',
-                  color: const Color(0xFF00B894),
-                  icon: Icons.check_circle_outline,
-                  cardColor: cardColor,
-                )),
-                const SizedBox(width: 10),
-                Expanded(child: _SummaryCard(
-                  label: 'Alerts',
-                  value: '$alerts',
-                  color: const Color(0xFFE53935),
-                  icon: Icons.warning_amber_outlined,
-                  cardColor: cardColor,
-                )),
-                const SizedBox(width: 10),
-                Expanded(child: _SummaryCard(
-                  label: 'Avg TDS',
-                  value: avgTds.toStringAsFixed(0),
-                  color: const Color(0xFF0077B6),
-                  icon: Icons.science_outlined,
-                  cardColor: cardColor,
-                )),
-              ]),
-              const SizedBox(height: 16),
+              if (_history.isNotEmpty) ...[
+                // Summary cards
+                Row(children: [
+                  Expanded(child: _SummaryCard(
+                    label: 'Refills',
+                    value: '$refillCount',
+                    color: const Color(0xFF0077B6),
+                    icon: Icons.water_drop_outlined,
+                    cardColor: cardColor,
+                  )),
+                  const SizedBox(width: 10),
+                  Expanded(child: _SummaryCard(
+                    label: 'Drains',
+                    value: '$drainCount',
+                    color: const Color(0xFFE53935),
+                    icon: Icons.water_drop,
+                    cardColor: cardColor,
+                  )),
+                  const SizedBox(width: 10),
+                  Expanded(child: _SummaryCard(
+                    label: 'Alerts',
+                    value: '$alertCount',
+                    color: const Color(0xFFFF9800),
+                    icon: Icons.warning_amber_outlined,
+                    cardColor: cardColor,
+                  )),
+                ]),
+                const SizedBox(height: 16),
 
-              // Filter tabs
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(children: [
-                  for (final f in ['All', 'Normal', 'Alert'])
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
-                        onTap: () => setState(() => _filter = f),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: _filter == f
-                              ? const Color(0xFF0077B6)
-                              : cardColor,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
+                // Filter tabs
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(children: [
+                    for (final f in [
+                      'All', 'This Week', 'This Month',
+                      'Refill', 'Drain'])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          onTap: () => setState(() => _filter = f),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
                               color: _filter == f
                                 ? const Color(0xFF0077B6)
-                                : Colors.grey.shade200),
+                                : cardColor,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: _filter == f
+                                  ? const Color(0xFF0077B6)
+                                  : Colors.grey.shade200),
+                            ),
+                            child: Text(f,
+                              style: TextStyle(
+                                color: _filter == f
+                                  ? Colors.white
+                                  : subTextColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500)),
                           ),
-                          child: Text(f,
-                            style: TextStyle(
-                              color: _filter == f
-                                ? Colors.white
-                                : subTextColor,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500)),
                         ),
                       ),
-                    ),
-                ]),
-              ),
-              const SizedBox(height: 14),
-
-              // Table header
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0077B6), Color(0xFF00B4D8)],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
+                  ]),
                 ),
-                child: const Row(children: [
-                  Expanded(flex: 3, child: Text('Time',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontSize: 12))),
-                  Expanded(child: Text('Level',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontSize: 12))),
-                  Expanded(child: Text('TDS',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontSize: 12))),
-                  Expanded(child: Text('Status',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontSize: 12))),
-                ]),
-              ),
-              const SizedBox(height: 10),
+                const SizedBox(height: 14),
+
+                // Table header
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF0077B6), Color(0xFF00B4D8)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(children: [
+                    Expanded(flex: 3, child: Text('Time',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 12))),
+                    Expanded(child: Text('Action',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 12))),
+                    Expanded(child: Text('Level',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 12))),
+                    Expanded(child: Text('Status',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 12))),
+                  ]),
+                ),
+                const SizedBox(height: 10),
+              ],
 
               // Table rows
               Expanded(
@@ -208,15 +217,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.bar_chart,
-                            size: 60,
-                            color: Colors.grey.shade300),
-                          const SizedBox(height: 12),
-                          Text('No records found',
+                          Container(
+                            width: 80, height: 80,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE3F2FD),
+                              borderRadius: BorderRadius.circular(20)),
+                            child: const Icon(Icons.history,
+                              size: 40,
+                              color: Color(0xFF0077B6)),
+                          ),
+                          const SizedBox(height: 16),
+                          Text('No history yet',
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Text(
+                            'History will appear here when\nyou refill or drain the tank.',
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               color: subTextColor,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500)),
+                              fontSize: 13)),
                         ],
                       ),
                     )
@@ -227,6 +249,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       itemBuilder: (ctx, i) {
                         final r = _filteredHistory[i];
                         final isNormal = r['status'] == 'Normal';
+                        final isRefill = r['action'] == 'Refill';
+                        final actionColor = isRefill
+                          ? const Color(0xFF0077B6)
+                          : const Color(0xFFE53935);
 
                         return Container(
                           padding: const EdgeInsets.symmetric(
@@ -253,24 +279,35 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 Text(r['time'],
                                   style: TextStyle(
                                     fontSize: 11,
+                                    fontWeight: FontWeight.w500,
                                     color: subTextColor)),
-                                Text('Turb: ${r['turb']} NTU',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.grey.shade400)),
+                                if (r['detail'] != null)
+                                  Text(r['detail'],
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade400)),
                               ],
                             )),
-                            Expanded(child: Text('${r['level']}%',
+                            Expanded(child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: actionColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(r['action'] ?? '-',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: actionColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10)),
+                            )),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(
+                              '${(r['level'] as double).toStringAsFixed(0)}%',
                               style: TextStyle(
                                 color: r['level'] > 50
                                   ? const Color(0xFF00B894)
-                                  : const Color(0xFFFF9800),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12))),
-                            Expanded(child: Text('${r['tds']}',
-                              style: TextStyle(
-                                color: r['tds'] < 200
-                                  ? const Color(0xFF0077B6)
                                   : const Color(0xFFFF9800),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12))),

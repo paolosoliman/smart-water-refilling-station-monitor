@@ -10,10 +10,76 @@ class TankScreen extends StatefulWidget {
 class _TankScreenState extends State<TankScreen> {
   bool _draining = false;
   bool _refilling = false;
-double get level => AppState.waterLevel;
-set level(double v) => AppState.waterLevel = v;
-String get _lastRefill => AppState.lastRefill;
-set _lastRefill(String v) => AppState.lastRefill = v;
+
+  double get level => AppState.waterLevel;
+  set level(double v) => AppState.waterLevel = v;
+  String get _lastRefill => AppState.lastRefill;
+  set _lastRefill(String v) => AppState.lastRefill = v;
+
+  String _getCurrentTime() {
+    final now = DateTime.now();
+    const months = ['Jan','Feb','Mar','Apr','May',
+      'Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    final h = now.hour > 12
+      ? now.hour - 12
+      : now.hour == 0 ? 12 : now.hour;
+    final m = now.minute.toString().padLeft(2, '0');
+    final period = now.hour >= 12 ? 'PM' : 'AM';
+    return '${months[now.month - 1]} ${now.day}, $h:$m $period';
+  }
+
+  void _addAlert({
+    required String type,
+    required String msg,
+    required String detail,
+  }) {
+    AppState.alerts.insert(0, {
+      'type': type,
+      'msg': msg,
+      'detail': detail,
+      'time': _getCurrentTime(),
+      'read': false,
+    });
+  }
+
+  void _addHistory({
+    required String action,
+    required String detail,
+    required String status,
+    required double level,
+  }) {
+    AppState.history.insert(0, {
+      'time': _getCurrentTime(),
+      'action': action,
+      'detail': detail,
+      'level': level,
+      'tds': AppState.tds.toInt(),
+      'turb': AppState.turbidity,
+      'status': status,
+      'timestamp': DateTime.now(),
+    });
+  }
+
+  void _showSnackbar(String message, Color color, IconData icon) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(children: [
+          Icon(icon, color: Colors.white, size: 18),
+          const SizedBox(width: 10),
+          Expanded(child: Text(message,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600))),
+        ]),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
 
   Future<void> _confirmDrain() async {
     final confirm = await showDialog<bool>(
@@ -45,11 +111,38 @@ set _lastRefill(String v) => AppState.lastRefill = v;
     );
     if (confirm == true) {
       setState(() => _draining = true);
+
+      _addAlert(
+        type: 'info',
+        msg: 'Tank drain started',
+        detail: 'Drain command sent to ESP32. Tank is being emptied.',
+      );
+
       Future.delayed(const Duration(seconds: 5), () {
-        if (mounted) setState(() {
-          _draining = false;
-          level = 0;
-        });
+        if (mounted) {
+          setState(() {
+            _draining = false;
+            level = 0;
+          });
+
+          _addAlert(
+            type: 'success',
+            msg: 'Tank drained successfully',
+            detail: 'Tank is now empty. Ready for cleaning or refill.',
+          );
+
+          _addHistory(
+            action: 'Drain',
+            detail: 'Tank drained to 0%',
+            status: 'Normal',
+            level: 0,
+          );
+
+          _showSnackbar(
+            'Tank drained successfully!',
+            const Color(0xFF00B894),
+            Icons.check_circle_outline);
+        }
       });
     }
   }
@@ -61,8 +154,7 @@ set _lastRefill(String v) => AppState.lastRefill = v;
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20)),
         title: const Row(children: [
-          Icon(Icons.water_drop,
-            color: Color(0xFF0077B6)),
+          Icon(Icons.water_drop, color: Color(0xFF0077B6)),
           SizedBox(width: 8),
           Text('Refill the Tank?'),
         ]),
@@ -84,21 +176,40 @@ set _lastRefill(String v) => AppState.lastRefill = v;
     );
     if (confirm == true) {
       setState(() => _refilling = true);
+
+      _addAlert(
+        type: 'info',
+        msg: 'Tank refill started',
+        detail: 'Refill command sent to ESP32. Tank is being filled.',
+      );
+
       Future.delayed(const Duration(seconds: 5), () {
-        if (mounted) setState(() {
-          _refilling = false;
-          level = 100;
-          final now = DateTime.now();
-          const months = ['Jan','Feb','Mar','Apr','May',
-            'Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-          final h = now.hour > 12
-            ? now.hour - 12
-            : now.hour == 0 ? 12 : now.hour;
-          final m = now.minute.toString().padLeft(2, '0');
-          final period = now.hour >= 12 ? 'PM' : 'AM';
-          _lastRefill =
-            '${months[now.month - 1]} ${now.day}, $h:$m $period';
-        });
+        if (mounted) {
+          final timeStr = _getCurrentTime();
+          setState(() {
+            _refilling = false;
+            level = 100;
+            _lastRefill = timeStr;
+          });
+
+          _addAlert(
+            type: 'success',
+            msg: 'Tank refilled successfully',
+            detail: 'Tank is now at 100% capacity.',
+          );
+
+          _addHistory(
+            action: 'Refill',
+            detail: 'Tank refilled to 100%',
+            status: 'Normal',
+            level: 100,
+          );
+
+          _showSnackbar(
+            'Tank refilled successfully!',
+            const Color(0xFF0077B6),
+            Icons.water_drop);
+        }
       });
     }
   }
@@ -135,9 +246,7 @@ set _lastRefill(String v) => AppState.lastRefill = v;
                   fontWeight: FontWeight.bold,
                   color: const Color(0xFF0077B6))),
               Text('Monitor and control your water tank',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: subTextColor)),
+                style: TextStyle(fontSize: 13, color: subTextColor)),
               const SizedBox(height: 24),
 
               // Tank visual card
@@ -157,7 +266,6 @@ set _lastRefill(String v) => AppState.lastRefill = v;
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    // Tank visualization
                     Column(children: [
                       Container(
                         width: 90, height: 160,
@@ -213,7 +321,6 @@ set _lastRefill(String v) => AppState.lastRefill = v;
                           fontWeight: FontWeight.w500)),
                     ]),
 
-                    // Stats column
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -237,7 +344,7 @@ set _lastRefill(String v) => AppState.lastRefill = v;
               ),
               const SizedBox(height: 16),
 
-              // Level progress bar card
+              // Level progress bar
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -303,18 +410,12 @@ set _lastRefill(String v) => AppState.lastRefill = v;
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('0%',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: subTextColor)),
-                        Text('50%',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: subTextColor)),
-                        Text('100%',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: subTextColor)),
+                        Text('0%', style: TextStyle(
+                          fontSize: 11, color: subTextColor)),
+                        Text('50%', style: TextStyle(
+                          fontSize: 11, color: subTextColor)),
+                        Text('100%', style: TextStyle(
+                          fontSize: 11, color: subTextColor)),
                       ],
                     ),
                   ],
@@ -322,7 +423,7 @@ set _lastRefill(String v) => AppState.lastRefill = v;
               ),
               const SizedBox(height: 16),
 
-              // Refill + Drain buttons card
+              // Controls card
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -343,8 +444,6 @@ set _lastRefill(String v) => AppState.lastRefill = v;
                         fontSize: 16,
                         color: textColor)),
                     const SizedBox(height: 10),
-
-                    // Warning info box
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -357,25 +456,22 @@ set _lastRefill(String v) => AppState.lastRefill = v;
                         const Icon(Icons.info_outline,
                           color: Color(0xFFFF9800), size: 16),
                         const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Use these controls carefully. Commands are sent directly to the ESP32.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.orange.shade800))),
+                        Expanded(child: Text(
+                          'Commands are sent directly to the ESP32.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange.shade800))),
                       ]),
                     ),
                     const SizedBox(height: 16),
 
-                    // Refill progress
                     if (_refilling) ...[
                       ClipRRect(
                         borderRadius: BorderRadius.circular(6),
                         child: const LinearProgressIndicator(
                           color: Color(0xFF0077B6),
                           backgroundColor: Color(0xFFE3F2FD),
-                          minHeight: 6,
-                        ),
+                          minHeight: 6),
                       ),
                       const SizedBox(height: 8),
                       const Text('Refilling in progress...',
@@ -386,15 +482,13 @@ set _lastRefill(String v) => AppState.lastRefill = v;
                       const SizedBox(height: 12),
                     ],
 
-                    // Drain progress
                     if (_draining) ...[
                       ClipRRect(
                         borderRadius: BorderRadius.circular(6),
                         child: const LinearProgressIndicator(
                           color: Color(0xFFE53935),
                           backgroundColor: Color(0xFFFFEBEE),
-                          minHeight: 6,
-                        ),
+                          minHeight: 6),
                       ),
                       const SizedBox(height: 8),
                       const Text('Draining in progress...',
@@ -405,9 +499,7 @@ set _lastRefill(String v) => AppState.lastRefill = v;
                       const SizedBox(height: 12),
                     ],
 
-                    // Two buttons side by side
                     Row(children: [
-                      // Refill button
                       Expanded(
                         child: SizedBox(
                           height: 52,
@@ -420,10 +512,8 @@ set _lastRefill(String v) => AppState.lastRefill = v;
                                 borderRadius: BorderRadius.circular(14)),
                             ),
                             onPressed: _refilling || _draining
-                              ? null
-                              : _confirmRefill,
-                            icon: const Icon(Icons.water_drop,
-                              size: 18),
+                              ? null : _confirmRefill,
+                            icon: const Icon(Icons.water_drop, size: 18),
                             label: Text(
                               _refilling ? 'Refilling...' : 'Refill Tank',
                               style: const TextStyle(
@@ -433,8 +523,6 @@ set _lastRefill(String v) => AppState.lastRefill = v;
                         ),
                       ),
                       const SizedBox(width: 12),
-
-                      // Drain button
                       Expanded(
                         child: SizedBox(
                           height: 52,
@@ -447,11 +535,9 @@ set _lastRefill(String v) => AppState.lastRefill = v;
                                 borderRadius: BorderRadius.circular(14)),
                             ),
                             onPressed: _draining || _refilling
-                              ? null
-                              : _confirmDrain,
+                              ? null : _confirmDrain,
                             icon: const Icon(
-                              Icons.water_drop_outlined,
-                              size: 18),
+                              Icons.water_drop_outlined, size: 18),
                             label: Text(
                               _draining ? 'Draining...' : 'Drain Tank',
                               style: const TextStyle(
@@ -486,14 +572,12 @@ class _StatItem extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-            style: TextStyle(
-              fontSize: 11,
-              color: subTextColor)),
+            style: TextStyle(fontSize: 11, color: subTextColor)),
           Text(value,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF0077B6))),
+              color: Color(0xFF0077B6))),
         ],
       ),
     );
